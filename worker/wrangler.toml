@@ -1,0 +1,9 @@
+name = "live-translator-backend"
+main = "src/index.js"
+compatibility_date = "2024-10-01"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+[vars]
+# 默认配置（敏感密钥 GEMINI_API_KEY 通过 wrangler secret 或环境变量设置）
+DEFAULT_MODEL = "models/gemini-3.8-live"

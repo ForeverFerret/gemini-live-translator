@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gemini 实时双语同传</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%20100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- 顶部状态栏 -->
+    <header class="app-header">
+      <div class="brand">
+        <span class="brand-icon">⚡</span>
+        <div>
+          <h1>Gemini 实时双语同传</h1>
+          <p class="subtitle">低延迟原生多模态流式同传</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <div class="status-indicator" id="statusBadge">
+          <span class="status-dot"></span>
+          <span class="status-text" id="statusText">就绪</span>
+        </div>
+        <div class="latency-indicator" id="latencyIndicator" title="端到端实时响应耗时">
+          <span class="latency-label">实时延迟</span>
+          <span class="latency-value" id="latencyValue">-- ms</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- 主体区域 -->
+    <main class="main-content">
+      <!-- 控制与配置面板 -->
+      <section class="controls-panel" aria-labelledby="controls-heading">
+        <h2 id="controls-heading" class="sr-only">同传控制</h2>
+
+        <div class="card config-card">
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="translationDirection">翻译方向：</label>
+              <select id="translationDirection">
+                <option value="bidirectional" selected>🔀 双向自适应 (中 ⇄ 英)</option>
+                <option value="en_to_zh">🇺🇸 英文 ➔ 🇨🇳 中文 (会议/视频同传)</option>
+                <option value="zh_to_en">🇨🇳 中文 ➔ 🇺🇸 英文 (中文发言同传)</option>
+              </select>
+            </div>
+
+            <div class="form-group flex-1">
+              <label for="voiceSelect">同传发音人 (音色)：</label>
+              <select id="voiceSelect">
+                <option value="Aoede" selected>👩 Aoede (女声 · 亲切自然 · 推荐)</option>
+                <option value="Kore">👩 Kore (女声 · 沉稳专业)</option>
+                <option value="Charon">👨 Charon (男声 · 磁性稳重 · 会议首选)</option>
+                <option value="Puck">👨 Puck (男声 · 阳光活力)</option>
+                <option value="Fenrir">👨 Fenrir (男声 · 浑厚饱满)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="action-bar">
+            <button id="toggleStreamBtn" class="btn-primary" type="button">
+              <span class="btn-icon">🎙️</span>
+              <span id="btnText">开始实时同传</span>
+            </button>
+            
+            <div class="action-meta">
+              <label class="checkbox-container" for="enableAudioPlayback">
+                <input type="checkbox" id="enableAudioPlayback">
+                <span>🔊 朗读译音</span>
+              </label>
+              
+              <div class="audio-meter-container">
+                <span class="meter-label">音量:</span>
+                <canvas id="audioVisualizer" width="120" height="24" aria-label="麦克风音量波形"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- 折叠高级设置（支持自定 Worker 地址或密钥） -->
+          <details class="advanced-settings">
+            <summary>高级连接设置</summary>
+            <div class="advanced-content">
+              <div class="form-group">
+                <label for="customServerInput">中继代理服务地址 (WebSocket)：</label>
+                <input 
+                  type="text" 
+                  id="customServerInput" 
+                  placeholder="wss://live-translator-backend.chinanetysj.workers.dev"
+                  spellcheck="false"
+                />
+                <small class="helper-text">默认连接高可用 Cloudflare 边缘节点，密钥由云端安全托管。</small>
+              </div>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <!-- 实时双语字幕流展示 -->
+      <section class="subtitles-section" aria-labelledby="subtitles-heading">
+        <div class="section-header">
+          <h2 id="subtitles-heading">实时双语字幕流</h2>
+          <div class="section-actions">
+            <button id="clearBtn" class="btn-secondary btn-sm" type="button">清空字幕</button>
+            <button id="copyBtn" class="btn-secondary btn-sm" type="button">复制全部</button>
+          </div>
+        </div>
+
+        <div class="subtitles-viewport" id="subtitlesViewport">
+          <!-- 当前正在流式涌现的临时字幕卡片（置顶在最上方） -->
+          <div class="current-turn-card hidden" id="currentTurnCard">
+            <div class="card-tag" id="currentCardTag">⚡ 正在聆听与同传中...</div>
+            <div class="turn-original" id="currentOriginalContainer">
+              <span class="turn-label">🗣️ 原文:</span>
+              <span class="turn-text" id="currentOriginalText">等待说话...</span>
+            </div>
+            <div class="turn-translation" id="currentTranslationContainer">
+              <span class="turn-label">🌐 译文:</span>
+              <span class="turn-text" id="currentTranslationText"></span>
+              <span class="typing-cursor"></span>
+            </div>
+          </div>
+
+          <!-- 历史句子卡片列表（时间倒序：最新对话在上方） -->
+          <div id="subtitlesList" role="log" aria-live="polite" aria-relevant="additions text">
+            <div class="welcome-hint" id="welcomeHint">
+              <p>🎙️ 点击上方 <strong>“开始实时同传”</strong> 开启麦克风，发言将实时以双语字幕呈现在此处。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- 页脚与说明 -->
+    <footer class="app-footer">
+      <span>由 Cloudflare 边缘计算与 Google Gemini 3.8 Multimodal Live 强力驱动</span>
+    </footer>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

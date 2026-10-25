@@ -1,0 +1,18 @@
+{
+  "name": "gemini-live-translator",
+  "version": "1.0.0",
+  "description": "Ultra-low-latency real-time simultaneous translator powered by Gemini Multimodal Live API",
+  "main": "server.mjs",
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "deploy": "wrangler deploy",
+    "preview": "wrangler dev"
+  },
+  "dependencies": {
+    "ws": "^8.22.0"
+  },
+  "devDependencies": {
+    "wrangler": "^4.152.0"
+  }
+}
